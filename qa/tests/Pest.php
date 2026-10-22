@@ -17,6 +17,13 @@
 |
 */
 
+use PestWP\Database\TransactionManager;
+
+uses()
+    ->beforeEach( fn() => TransactionManager::beginTransaction() )
+    ->afterEach( fn() => TransactionManager::rollback() )
+    ->in( 'Integration' );
+
 /*
 |--------------------------------------------------------------------------
 | Helper Functions

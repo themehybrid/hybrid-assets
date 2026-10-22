@@ -16,7 +16,7 @@ WordPress asset registration usually means hardcoding URLs, manually tracking `f
 ## Requirements
 
 - PHP 8.2+
-- [Hybrid Core](https://github.com/themehybrid/hybrid-core) framework ^7.0
+- [Hybrid Core](https://github.com/themehybrid/hybrid-core) ^7.0
 - [Hybrid Tools](https://github.com/themehybrid/hybrid-tools) ^2.0
 - WordPress 7.0+
 
@@ -104,6 +104,7 @@ use Hybrid\Core\Facades\Facade;
  * @method static string assetUrl(string $file, bool $inherit)
  * @method static string assetPath(string $file, bool $inherit)
  * @method static \Hybrid\Assets\Asset asset(string $file, bool $inherit, string $overrideManifestDirectory = '')
+ * @method static \Hybrid\Assets\Svg svg(string $file, bool $inherit = false)
  */
 class Assets extends Facade {
 
@@ -146,6 +147,7 @@ use Hybrid\Core\Facades\Facade;
  * @method static string assetUrl(string $file, bool $inherit)
  * @method static string assetPath(string $file, bool $inherit)
  * @method static \Hybrid\Assets\Asset asset(string $file, bool $inherit, string $overrideManifestDirectory = '')
+ * @method static \Hybrid\Assets\Svg svg(string $file, bool $inherit = false)
  */
 class Assets extends Facade {
 
@@ -193,6 +195,31 @@ $theme->setManifestFileName( 'mix-manifest.json' );  // default, rarely needs ch
 
 Metadata resolution order is always: **`.asset.php` → `mix-manifest.json` → content hash fallback.**
 
+### Inline SVG
+
+`svg()` resolves a file through the same path and inheritance rules as `asset()`, then renders its markup inline — useful for icons you want to style with CSS or animate:
+
+```php
+Assets::svg( 'images/icons/arrow.svg' )->display();   // echo
+$markup = Assets::svg( 'images/icons/arrow.svg' )->render();  // return
+```
+
+Markup is **sanitized by default** against an allow-list vendored from an open WordPress core pull request ([#12197](https://github.com/WordPress/wordpress-develop/pull/12197)). It strips scripts, event handlers, `javascript:` / `data:` URLs (in `href` and `xlink:href`), `<animate>` / `<set>`, and disallowed elements. Once core ships that sanitizer, this package will call core's instead. A file that is missing, unreadable, or contains no valid SVG renders as an empty string rather than throwing.
+
+On WordPress 7.0, `wp_kses()` cannot keep attribute names that contain a colon, so `xmlns:xlink` is dropped and `xlink:href` is rewritten to `href`. Unsafe URLs are still removed. WordPress 7.1 keeps both.
+
+Inheritance works as it does for `asset()`:
+
+```php
+Assets::svg( 'images/icons/arrow.svg', true );  // child theme first
+```
+
+Skip sanitization only for build-pipeline output you control:
+
+```php
+Assets::svg( 'images/icons/arrow.svg' )->sanitize( false )->render();
+```
+
 ## How resolution works
 
 ```
@@ -211,25 +238,27 @@ asset( $file, inherit: true )
 
 ## Exceptions
 
-All exceptions implement `Hybrid\Assets\Contracts\AssetsException`, so you can catch the whole package with one type if needed.
+All exceptions implement `Hybrid\Assets\Contracts\AssetsException`, so the whole package can be caught with one type.
 
 | Exception | Thrown when |
 |---|---|
-| `InvalidAssetFileException` | `asset()` / `resolve()` is called with a blank file path |
+| `InvalidAssetFileException` | `asset()` / `svg()` is called with a blank file path |
 | `PluginFileNotSetException` | A `Plugin` resolver is used before `setPluginFile()` |
-| `PathOutsideBaseException` | A resolved `.asset.php` path escapes the resolver's base directory (traversal guard) |
+| `PathOutsideBaseException` | A resolved `.asset.php` escapes the resolver's base directory |
 | `UnresolvableBaseDirectoryException` | The resolver's base directory can't be resolved via `realpath()` |
 
 ## Architecture
 
 | Class | Role |
 |---|---|
-| `Contracts\AssetsResolver` | Contract: `path()`, `url()`, `asset()`, `assetUrl()`, `assetPath()`, directory getters |
-| `AssetsResolver` (abstract) | Shared resolution logic (directories, inheritance chain, normalization) — extended by all three resolvers below |
+| `Contracts\AssetsResolver` | Contract: `path()`, `url()`, `asset()`, `svg()`, `assetUrl()`, `assetPath()` |
+| `AssetsResolver` | Abstract base: resolution, inheritance chain, manifest handling — extended by all three resolvers below |
 | `ParentTheme` | Resolves assets in the active parent theme |
 | `ChildTheme` | Resolves assets in the active child theme, if one exists |
 | `Plugin` | Resolves assets in a specific plugin; supports override directories |
 | `Asset` | Immutable, fully-resolved asset (URL, path, dependencies, version) |
+| `Svg` | Reads and sanitizes an SVG for inline rendering |
+| `Support\SvgSanitizer` | Allow-list sanitizer, vendored from WordPress core PR #12197 |
 | `Concerns\AssetMetaData` | Trait: reads `.asset.php` / `mix-manifest.json` metadata, path-traversal safe |
 | `AssetsServiceProvider` | Registers the above with the Hybrid Core container |
 
