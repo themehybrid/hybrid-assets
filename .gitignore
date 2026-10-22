@@ -1,5 +1,7 @@
 composer.lock
 /vendor
 /.idea
-/.phpunit.cache
 /.vscode
+/qa/vendor
+/qa/.pest
+/qa/.phpunit.cache
