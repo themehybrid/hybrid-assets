@@ -172,6 +172,16 @@ abstract class AssetsResolver implements AssetsResolverContract {
     }
 
     /**
+     * Resolve an `Svg` instance for a file, sanitized by default.
+     *
+     * @param string $file Relative file path, e.g. `images/icons/arrow.svg`.
+     * @param bool   $inherit Whether to check the inheritance chain (e.g. child theme) first.
+     */
+    public function svg( string $file, bool $inherit = false ): Svg {
+        return new Svg( $this->asset( $file, $inherit ) );
+    }
+
+    /**
      * Normalize a relative file path: guarantee a leading slash.
      *
      * @param string $file Relative file path.

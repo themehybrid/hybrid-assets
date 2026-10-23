@@ -2,6 +2,49 @@
 
 You can see the changes made via the [commit log](https://github.com/themehybrid/hybrid-assets/commits/master) for the latest release.
 
+## [1.0.0-alpha.6] - 2026-10-22
+
+Adds inline SVG rendering. No breaking changes to existing APIs.
+
+### Added
+
+- `AssetsResolver::svg()` and `Contracts\Svg`: resolves an SVG through the
+  same path and inheritance chain as `asset()`, then renders it inline via
+  `render()` or `display()` ([#4])
+- `Support\SvgSanitizer`: sanitization is on by default; opt out per call
+  with `->sanitize( false )` when the file is known-trusted
+- SVG markup is filtered through the sanitizer from the open core pull
+  request [PR #12197] ([Trac #64651]), ported from its commit `c129d8c`.
+  Scripts, event handlers, `javascript:`/`data:` URLs in `href` and
+  `xlink:href`, `<animate>`/`<set>`, `<foreignObject>`, and disallowed
+  elements are stripped. When core ships it, the package will call core's
+- Integration test suite running the sanitizer against real `wp_kses()` and
+  `WP_HTML_Processor`, using the pull request's own test expectations
+  verbatim, so any drift from upstream fails loudly
+
+### Changed
+
+- Test suite migrated from Brain Monkey to a real WordPress install via
+  `alvarodelera/pest-wp-plugin` (SQLite, no database server). It lives in
+  `qa/`, a separate Composer project, because Pest 5 needs **PHP 8.4**; the
+  package itself still supports PHP 8.2+. Run with `composer test`
+- Resolver tests now assert real return values rather than mocked call
+  expectations
+
+### Known issues
+
+- On WordPress 7.0, `wp_kses()` drops `xmlns:xlink` and rewrites
+  `xlink:href` to `href`, so five conformance cases fail there. Unsafe URLs
+  are still stripped. The suite targets the latest WordPress, 7.1
+- `is_child_theme()` is constant-backed, so `ChildTheme::exists()` can only be
+  exercised against whichever theme the test environment has active
+- The symlinked `.asset.php` test is skipped on systems that cannot create
+  symlinks, such as Windows without Developer Mode
+
+[#4]: https://github.com/themehybrid/hybrid-assets/issues/4
+[Trac #64651]: https://core.trac.wordpress.org/ticket/64651
+[PR #12197]: https://github.com/WordPress/wordpress-develop/pull/12197
+
 ## [1.0.0-alpha.5] - 2026-08-01
 
 Large internal restructure. The public method names are mostly unchanged, but

@@ -174,7 +174,16 @@ it( 'refuses to include a .asset.php that is a symlink to a differently-named fi
 
     mkdir( $root . '/js', recursive: true, permissions: 0755 );
     file_put_contents( $root . '/js/payload.php', '<?php return [ "version" => "leaked" ];' );
-    symlink( $root . '/js/payload.php', $root . '/js/app.asset.php' );
+    // Windows refuses symlinks without Developer Mode or admin rights. Without
+    // the link the file is simply missing, which would pass for the wrong reason.
+    // PHPUnit records the warning even under @, so silence it with a handler.
+    set_error_handler( static fn() => true );
+    $linked = symlink( $root . '/js/payload.php', $root . '/js/app.asset.php' );
+    restore_error_handler();
+
+    if ( ! $linked ) {
+        $this->markTestSkipped( 'This system cannot create symlinks.' );
+    }
 
     $resolver = new FakeResolver( $root );
 
